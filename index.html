@@ -57,6 +57,7 @@ h2{border-left:8px solid #00cccc;padding-left:12px}
 .subt{display:flex;gap:8px;overflow-x:auto;margin:0 0 16px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:2}.subt .chip{flex:none}.sub{display:none}.sub.on{display:grid}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ac);color:var(--ai);padding:12px 18px;border-radius:12px;font-weight:600;z-index:20;display:none}
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}label.btn{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.leaflet-container{font:inherit}.leaflet-control-layers input{width:auto;min-height:0;padding:0;margin:0 6px 0 0}.leaflet-control-layers label>span,.leaflet-control-layers span{display:inline;font-size:14px;color:inherit;margin:0;font-weight:400}
 .pgd{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:14px}.pc{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}.pc img{width:100%;border-radius:8px}
 #rpt{display:none}
 @media print{@page{size:A3;margin:12mm}
@@ -112,6 +113,8 @@ dialog textarea{min-height:55vh;font:14px/1.45 ui-monospace,Menlo,monospace}
 @media(max-width:820px){.app{display:block}aside{position:static;max-height:none;border:0}.nvs{display:flex;flex-wrap:wrap;gap:6px}.nv{width:auto;gap:8px}.lrow{grid-template-columns:1fr 80px}.lrow input:last-child{grid-column:1/-1}main{padding:16px}}
 @media print{aside,.nx,.top .btn,.zt{display:none}.app{display:block}.sec,.zp{display:block!important;border:0;padding:0}.chip:not([aria-pressed="true"]){display:none}:root{--bg:#fff;--sf:#fff;--ink:#000;--ln:#999}}
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer onload="mapInit()" onerror="mapErr()"></script>
 </head>
 <body>
 <div class="app">
@@ -142,6 +145,7 @@ const RG=['Haute température (> 65 °C)','Basse température (< 65 °C)','Varia
 const LT={mu:['Mur extérieur','Mur sur local non chauffé','Mur enterré','Mur sur bât. autre que d’habitation','Mur mitoyen'],pb:['Sur terre-plein','Sur vide-sanitaire','Sur local non chauffé','Sur local autre que d’habitation','Sur l’extérieur','Mitoyen'],pl:['Terrasse','Combles aménagés','Sur local non chauffé (combles perdus…)','Sur local autre que d’habitation','Mitoyen']};
 const OR=['25° ≤ Nord < 75°','25° ≤ Nord-Est < 75°','25° ≤ Est < 75°','25° ≤ Sud-Est < 75°','25° ≤ Sud < 75°','25° ≤ Sud-Ouest < 75°','25° ≤ Ouest < 75°','25° ≤ Nord-Ouest < 75°','Intérieur','Horizontale','Sud < 25°','Ouest < 25°','Est < 25°','Nord < 25°'];
 const IS=['Non isolé','Isolé < 5 cm','Isolé 5–10 cm','Isolé > 10 cm','Inconnu'],M2=['su','Surface',U,'m²'],EE=['et','État',ST];
+const ZN=['Rez-de-chaussée','Étage 1','Étage 2','Combles aménagés','Sous-sol','Salle principale','Circulations','Annexes'];
 const PR=[
 ['pb','Plancher bas',[['ty','Donne sur',LT.pb],['st','Structure',['Dalle béton','Plancher bois','Hourdis','Pierre / voûtains']],['is','Isolation',IS],M2,EE,['tw','Travaux à prévoir',['Aucun','Isolation sous-face','Isolation par le dessus','Isolation sous chape']]]],
 ['mu','Murs',[['ty','Donne sur',LT.mu],['st','Structure',['Béton','Brique pleine','Brique creuse','Parpaing','Pierre','Ossature bois']],['is','Isolation',IS],M2,EE,['tw','Travaux à prévoir',['Aucun','ITE','ITI','Injection / remplissage','Ravalement']]]],
@@ -155,6 +159,10 @@ const S=[
 f('usage','Usage(s)','c',['Administratif','Scolaire','Socio-culturel','Sportif','Restauration','Habitation','Santé','Autre']),
 f('per','Période de construction','r',['Avant 1948','1948–1974','1975–1989','1990–2005','2006–2012','Après 2012']),
 f('sc','Surface chauffée','n',0,{u:'m²'}),f('nv','Nombre de niveaux','r',['1','2','3','4','5 et +']),
+h('Hauteur sous plafond'),f('hzn','Nombre de zones de hauteur différente','r',['1','2','3','4']),
+...[1,2,3,4].map(i=>g(i>1?['hzn',['2','3','4'].slice(i-2).join(';')]:0,[f('hz'+i+'n','Zone '+i,'r',ZN),f('hz'+i+'s','Zone '+i+' – surface','n',0,{u:'m²'}),f('hz'+i+'h','Zone '+i+' – hauteur','n',0,{u:'m'})])),
+f('hsp','Hauteur sous plafond moyenne (calculée)','n',0,{u:'m',ro:1}),
+
 f('oc','Occupation','r',['Permanente','Heures de bureau','Scolaire','Ponctuelle']),f('hr','Heures d’occupation','n',0,{u:'h'}),f('hp','Heures comptées','r',['Par jour','Par semaine','Par mois']),f('erp','ERP','r',['Non','Oui'])]},
 {id:'v',t:'Enveloppe',f:[...PR.map(([c,n,sp])=>({...g(0,[h(n),...PI(c,n,sp,1),f(c+'_nb','Nombre de types différents','r',['1','2','3']),g([c+'_nb','2;3'],[h(n+' – type 2'),...PI(c,n,sp,2)]),g([c+'_nb','3'],[h(n+' – type 3'),...PI(c,n,sp,3)])]),sub:n})),{...g(0,[com]),sub:'Observations'}]},
 {id:'c',t:'Chauffage & clim',f:[f('tc','Type de chauffage','c',TC),f('gen','Type de générateur','r',GEN),f('gp','Puissance du générateur','n',0,{u:'kW'}),f('ge','État du générateur','r',ST),
@@ -176,10 +184,10 @@ function fld(sid,x,pre='',lp=''){
  if(x.t=='g')return `<div class="g2 w${x.sub?' sub':''}"${x.sub?` data-n="${E(x.sub)}"`:''}${ifa}>${x.f.map(y=>fld(sid,y)).join('')}</div>`;
  if(x.t=='h')return `<h3 class="w"${ifa}>${E(x.l)}</h3>`;
  const k=sid+'_'+pre+x.k,t=(x.t=='r'&&x.o.length>4)?'s':x.t,L=E(lp+(x.sl||x.l)),lab=E(x.l+(x.u?' ('+x.u+')':''));let b,w='';
- if(t=='x'||t=='n')b=`<label><span>${lab}</span><input data-k="${k}"${t=='n'?' inputmode="decimal"':''}></label>`;
+ if(t=='x'||t=='n')b=`<label><span>${lab}</span><input data-k="${k}"${t=='n'?' inputmode="decimal"':''}${x.ro?' readonly':''}></label>`;
  else if(t=='a'){b=`<label><span>${lab}</span><textarea data-k="${k}"></textarea></label>`;w=' w'}
  else if(t=='s'){b=`<label><span>${lab}</span><select data-k="${k}"><option value=""></option>${x.o.map(o=>`<option>${E(o)}</option>`).join('')}</select></label>`}
- else if(t=='ad'){w=' w';b=`<label><span>${lab}</span><input data-k="${k}" id="adr" autocomplete="off" placeholder="Tapez le n° et la rue…"></label><div id="sug"></div><div class="row" style="margin-top:8px"><button type="button" class="btn" id="geo">Utiliser ma position</button><button type="button" class="btn" id="pcl">Chercher la parcelle</button></div><p class="mu" id="ast"></p>`}
+ else if(t=='ad'){w=' w';b=`<label><span>${lab}</span><input data-k="${k}" id="adr" autocomplete="off" placeholder="Tapez le n° et la rue…"></label><div id="sug"></div><div class="row" style="margin-top:8px"><button type="button" class="btn" id="geo">Utiliser ma position</button><button type="button" class="btn" id="pcl">Chercher la parcelle</button><button type="button" class="btn" id="gm">Ouvrir dans Google Maps</button></div><p class="mu" id="ast"></p><div id="map" style="height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--ln);margin-bottom:6px"></div>`}
  else if(t=='c'||t=='r'){w=' w';const ch=x.o.map(o=>`<button type="button" class="chip" data-k="${k}" data-v="${E(o)}" data-m="${t}" aria-pressed="false">${E(o)}</button>`).join('');b=(t=='c'&&x.o.length>7)?`<details class="dd" data-kk="${k}"><summary><b>${lab}</b><em></em></summary><div class="chips">${ch}</div></details>`:`<span>${lab}</span><div class="chips">${ch}</div>`}
  else if(t=='l'){w=' w';b=`<span>${lab}</span>`+x.o.map(([n,c])=>`<div class="lrow"><button type="button" class="chip" data-k="${k}_${c}" data-m="b" aria-pressed="false">${E(n)}</button><input data-k="${k}_${c}_nb" inputmode="numeric" placeholder="Nb"><input data-k="${k}_${c}_loc" placeholder="Emplacement"></div>`).join('')}
  else if(t=='t'){w=' w';b='<div id="tot"></div>'}
@@ -200,18 +208,18 @@ function head(){$('#ti').textContent=A.v.d_nom||'Nouvelle fiche';
  $('#fs').innerHTML=D.l.map(a=>`<option value="${a.id}"${a.id==A.id?' selected':''}>${E(a.v.d_nom||'Fiche sans nom')} – ${new Date(a.t).toLocaleDateString('fr-FR')}</option>`).join('')}
 function paint(){$$('[data-k]').forEach(e=>{const v=A.v[e.dataset.k];
  if(e.classList.contains('chip')){const d=e.dataset;e.setAttribute('aria-pressed',d.m=='b'?!!v:d.m=='c'?(v||[]).includes(d.v):v==d.v)}else e.value=v||''});
- dd();ifs();dots();head();tot();ph()}
+ dd();ifs();dots();head();tot();ph();mapSync()}
 function dd(){$$('details.dd').forEach(d=>{const v=A.v[d.dataset.kk]||[];d.querySelector('em').textContent=v.length?v.join(', '):'Aucune sélection'})}
 function tt(){let k=0,e=0;const n=s=>+String(s||0).replace(',','.')||0;
  EN.forEach(([c,m])=>{if((A.v.r_ener||[]).includes(m)){k+=n(A.v['r_'+c+'_kwh']);e+=n(A.v['r_'+c+'_eur'])}});
  return k||e?`Total : ${k.toLocaleString('fr-FR')} kWh – ${e.toLocaleString('fr-FR')} €`+(k&&e?` – ${(e/k).toFixed(3).replace('.',',')} €/kWh en moyenne`:''):''}
 function tot(){const d=$('#tot');if(d)d.textContent=tt()}
-function set(k,v){A.v[k]=v;A.t=Date.now();save();ifs();dots();head();tot()}
+function set(k,v){A.v[k]=v;A.t=Date.now();if(/^d_hz[1-4][sh]$|^d_hzn$/.test(k))hsp();save();ifs();dots();head();tot()}
 let sb=0;const nsb=i=>$$('.sec')[i].querySelectorAll(':scope>.g2>.sub').length;
 function go(i,j=0){cur=Math.max(0,Math.min(S.length-1,i));const m=nsb(cur);sb=m?Math.max(0,Math.min(m-1,j)):0;
  $$('.sec').forEach((s,x)=>{s.classList.toggle('on',x==cur);if(x==cur)s.querySelectorAll(':scope>.g2>.sub').forEach((u,y)=>u.classList.toggle('on',y==sb))});
  $$('.st').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.sb==sb));
- $$('.nv').forEach((n,x)=>n.classList.toggle('on',x==cur));window.scrollTo(0,0)}
+ $$('.nv').forEach((n,x)=>n.classList.toggle('on',x==cur));if(cur==0)setTimeout(mapInit,60);window.scrollTo(0,0)}
 function step(d){const m=nsb(cur);if(m&&sb+d>=0&&sb+d<m)go(cur,sb+d);else if(d<0&&cur>0){const p=nsb(cur-1);go(cur-1,p?p-1:0)}else go(cur+d,0)}
 document.addEventListener('input',e=>{const k=e.target.dataset.k;if(k)set(k,e.target.value)});
 document.addEventListener('click',e=>{
@@ -259,7 +267,7 @@ async function rpt(){const v=A.v,d=new Date().toLocaleDateString('fr-FR'),bg=get
  let no=0;const hd=(id,t)=>`<div class="chh"><span class="no">${String(++no).padStart(2,'0')}</span><h2>${E(t)}</h2><small>${E(v.d_nom||'')}</small>${ico(id)}</div><div class="rule"></div>`;
  const rw=r=>`<div class="${r.w?'tv':r.x.length>36?'wd':''}"><dt>${r.w?'Travaux à prévoir':E(r.l)}</dt><dd>${E(r.x)}</dd></div>`;
  const card=b=>{const st=b.r.find(r=>/^État/.test(r.l)&&ST2[r.x]),rs=b.r.filter(r=>r!==st);return `<div class="cd${rs.length>6?' fw':''}">${b.t||st?`<div class="cdh"><span>${E(b.t)}</span>${st?`<em class="bd" style="background:${ST2[st.x]}">${E(st.x)}</em>`:''}</div>`:''}<dl>${rs.map(rw).join('')}</dl></div>`};
- const idr=[['Adresse',adr],...ident.filter(r=>!/^d_(nom|adr|cp|vil|insee)$/.test(r.key)).map(r=>[r.l,r.x])].filter(r=>r[1]);
+ const idr=[['Adresse',adr],...ident.filter(r=>!/^d_(nom|adr|cp|vil|insee|hzn|hz[1-4][nsh])$/.test(r.key)).map(r=>[r.l,r.x])].filter(r=>r[1]);
  const kp=[['Surface chauffée',sc?F(sc)+' m²':'–'],['Construction',v.d_per||'–'],['Consommation',k?F(k)+' kWh/an':'–'],['Facture',e?F(e)+' €/an':'–'],['Ratio énergétique',k&&sc?Math.round(k/sc)+' kWh/m²':'–'],['Occupation',v.d_hr?v.d_hr+' h '+(v.d_hp||'').toLowerCase():'–']];
  const grp={};tw.forEach(([c,l,x])=>{(grp[c]=grp[c]||[]).push([l,x])});
  let o=`<div class="cv"><div class="cvt"><i class="o1"></i><i class="o2"></i><i class="o3"></i><img class="cl" src="${$('.lg').src}"><small>AUDIT ÉNERGÉTIQUE · FICHE DE VISITE</small><h1>Rapport<br>de visite</h1><h3>${E(v.d_nom||'Bâtiment')}</h3><p>${E(adr)}</p><p>Visite du ${d}${v.d_parc?' · Parcelle '+E(v.d_parc):''}</p></div><div class="rb" style='background-image:${bg};background-position:center bottom;background-size:contain;background-repeat:no-repeat'></div><img class="cf" src="${$('.ft').src}"></div>`;
@@ -304,12 +312,12 @@ async function pcl(lo,la){st('Recherche de la parcelle…');
  try{const j=await(await fetch('https://apicarto.ign.fr/api/cadastre/parcelle?geom='+encodeURIComponent(JSON.stringify({type:'Point',coordinates:[lo,la]})))).json(),p=j.features&&j.features[0]&&j.features[0].properties;
   if(!p){st('Parcelle non trouvée : saisie manuelle.');return}
   set('d_parc',p.idu||'');set('d_sec',((p.section||'')+' '+(p.numero||'')).trim());if(p.contenance)set('d_cont',String(p.contenance));paint();st('Parcelle trouvée.')}catch(x){st('Cadastre indisponible : saisie manuelle.')}}
-function pick(ft,c){const p=ft.properties,g=c||ft.geometry.coordinates;set('d_adr',p.name||p.label);set('d_cp',p.postcode||'');set('d_vil',p.city||'');set('d_insee',p.citycode||'');$('#sug').innerHTML='';paint();pcl(g[0],g[1])}
+function pick(ft,c){const p=ft.properties,g=c||ft.geometry.coordinates;set('d_adr',p.name||p.label);set('d_cp',p.postcode||'');set('d_vil',p.city||'');set('d_insee',p.citycode||'');set('d_lat',String(g[1]));set('d_lon',String(g[0]));$('#sug').innerHTML='';paint();pcl(g[0],g[1])}
 document.addEventListener('input',e=>{if(e.target.id=='adr'){clearTimeout(tm);const q=e.target.value;tm=setTimeout(()=>sg(q),250)}});
 document.addEventListener('click',async e=>{const s=e.target.closest('.sg'),i=e.target.id;
  if(s)pick(FT[+s.dataset.i]);
  else if(i=='geo')navigator.geolocation.getCurrentPosition(async p=>{try{const lo=p.coords.longitude,la=p.coords.latitude,j=await(await fetch(AD+'reverse/?lon='+lo+'&lat='+la)).json();j.features[0]?pick(j.features[0],[lo,la]):st('Aucune adresse trouvée ici.')}catch(x){st('Réseau indisponible : saisie manuelle.')}},()=>st('Position refusée ou indisponible.'));
- else if(i=='pcl'){try{const j=await(await fetch(AD+'search/?limit=1&q='+encodeURIComponent([A.v.d_adr,A.v.d_cp,A.v.d_vil].join(' ')))).json();j.features[0]?pcl(...j.features[0].geometry.coordinates):st('Adresse introuvable.')}catch(x){st('Réseau indisponible : saisie manuelle.')}}});
+ else if(i=='pcl'){try{const j=await(await fetch(AD+'search/?limit=1&q='+encodeURIComponent([A.v.d_adr,A.v.d_cp,A.v.d_vil].join(' ')))).json();j.features[0]?pick(j.features[0]):st('Adresse introuvable.')}catch(x){st('Réseau indisponible : saisie manuelle.')}}});
 let DB,pn=0;const PC=['Façade / vue générale','Murs','Toiture / combles','Menuiseries','Chaufferie / générateur','Émetteurs','ECS / ballon','Ventilation','Éclairage','Compteurs / plaques','Autre'];
 const MEM=[];let rq;try{rq=indexedDB.open('fa-photos',1);rq.onupgradeneeded=()=>rq.result.createObjectStore('p',{keyPath:'id'});rq.onsuccess=()=>{DB=rq.result;ph()};rq.onerror=()=>{DB=null;ph()}}catch(x){}
 const os=m=>DB.transaction('p',m).objectStore('p'),
@@ -324,6 +332,25 @@ document.addEventListener('change',async e=>{const t=e.target;
  if(t.id=='fcam'||t.id=='fimp'){const fs=[...t.files];let ok=0;toast('Ajout en cours…');for(const fl of fs){try{await pput({id:Date.now()*100+(pn++%100),aid:A.id,cat:'',note:'',d:await rsz(fl),t:Date.now()});ok++}catch(x){toast('Photo non ajoutée : '+((x&&x.message)||'erreur de stockage'))}}t.value='';ph();if(ok)toast(ok+' photo(s) ajoutée(s)'+(DB?'':' – stockage temporaire'));return}
  if(t.dataset.pc){const id=+t.closest('.pc').dataset.id,p=(await gall()).find(x=>x.id==id);if(p){p[t.dataset.pc]=t.value;await pput(p)}}});
 $$('.sec').forEach(s=>{const u=[...s.querySelectorAll(':scope>.g2>.sub')];if(u.length){const b=document.createElement('div');b.className='subt';b.innerHTML=u.map((x,j)=>`<button type="button" class="chip st" data-sb="${j}" aria-pressed="false">${E(x.dataset.n)}</button>`).join('');s.children[0].after(b)}});
+function hsp(){const n=Math.max(1,+A.v.d_hzn||1),q=x=>+String(x||0).replace(',','.')||0;let S=0,P=0;
+ for(let i=1;i<=n;i++){const a=q(A.v['d_hz'+i+'s']),b=q(A.v['d_hz'+i+'h']);if(a>0&&b>0){S+=a;P+=a*b}}
+ A.v.d_hsp=S?(P/S).toFixed(2):'';const e=$('[data-k="d_hsp"]');if(e)e.value=A.v.d_hsp}
+let MP,MK,MS='';
+function mapErr(){const m=$('#map');if(m)m.innerHTML='<p class="mu" style="padding:14px">Carte indisponible (connexion requise). La saisie manuelle reste possible.</p>'}
+function mapInit(){const el=$('#map');if(!el||!window.L)return;
+ if(!MP){MP=L.map(el).setView([49.9,4.0],9);
+  const T=(l,f)=>'https://data.geopf.fr/wmts?REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT='+f+'&LAYER='+l+'&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+  osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
+  sat=L.tileLayer(T('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg'),{maxZoom:19,attribution:'© IGN'}),
+  par=L.tileLayer(T('CADASTRALPARCELS.PARCELLAIRE_EXPRESS','image/png'),{maxZoom:19,attribution:'© IGN'});
+  osm.addTo(MP);L.control.layers({'Plan':osm,'Satellite':sat},{'Parcelles':par}).addTo(MP);
+  MP.on('click',async e=>{const la=e.latlng.lat,lo=e.latlng.lng;st('Recherche de l’adresse…');
+   try{const j=await(await fetch(AD+'reverse/?lon='+lo+'&lat='+la)).json();if(j.features[0])pick(j.features[0],[lo,la]);else st('Aucune adresse trouvée à cet endroit.')}catch(x){st('Réseau indisponible : saisie manuelle.')}})}
+ MP.invalidateSize();MS='';mapSync()}
+function mapSync(){if(!MP)return;const la=+A.v.d_lat,lo=+A.v.d_lon,key=A.id+','+A.v.d_lat+','+A.v.d_lon;if(key==MS)return;MS=key;
+ if(MK){MK.remove();MK=null}
+ if(la&&lo){MK=L.circleMarker([la,lo],{radius:9,color:'#fff',weight:3,fillColor:'#ff5200',fillOpacity:1}).addTo(MP);MP.setView([la,lo],Math.max(MP.getZoom(),17))}else MP.setView([49.9,4.0],9)}
+document.addEventListener('click',e=>{if(e.target.id=='gm'){const la=A.v.d_lat,lo=A.v.d_lon,q=la?la+','+lo:encodeURIComponent([A.v.d_adr,A.v.d_cp,A.v.d_vil].filter(Boolean).join(' '));window.open('https://www.google.com/maps/search/?api=1&query='+q,'_blank')}});
 paint();go(0);
 </script>
 </body>
